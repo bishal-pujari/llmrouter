@@ -1,0 +1,99 @@
+# Example only. Verify every model ID, price, quota, and data policy against the
+# provider's current docs. Provider limits and prices are intentionally unknown here.
+settings:
+  # Hard timeout for each individual provider request, in seconds.
+  default_timeout_s: 60
+  # Enforce this fraction of configured quotas to leave room for estimation error.
+  limit_safety_fraction: 0.9
+  # Payload-log setting reserved for opt-in prompt storage; current attempt logs
+  # always omit prompt/response contents and keep only a prompt hash.
+  log_payloads: false
+  # Master switch for response caching. A route TTL of 0 disables caching for that task.
+  cache_enabled: true
+  # Maximum wait for quota/concurrency headroom, in seconds (waiting is not wired yet).
+  max_wait_s: 20
+
+# Ordered tier names. Task routes choose which tiers to try and in what order.
+tiers: [T0, T1, T2, T3]
+
+models:
+  # One provider model configuration. Duplicate IDs are rejected.
+  - id: placeholder-free-model
+    # Adapter name. openai_compat covers NVIDIA NIM and other compatible APIs.
+    provider: openai_compat
+    # Exact model identifier expected by the provider endpoint.
+    model_name: REPLACE_WITH_PROVIDER_MODEL_ID
+    # API root for OpenAI-compatible providers, usually ending in /v1.
+    base_url: https://REPLACE_WITH_PROVIDER_ENDPOINT/v1
+    # Environment-variable name containing the secret; never put the key itself here.
+    api_key_env: OPENAI_COMPAT_API_KEY
+    # Routing tier; must be declared in the top-level tiers list.
+    tier: T0
+    # Lower numbers are preferred within the same tier.
+    priority: 1
+    # Disabled models are never selected. Enable only after filling in verified values.
+    enabled: false
+    # Maximum requests per minute; null means unknown/not enforced.
+    rpm: null
+    # Maximum requests per second; null means unknown/not enforced.
+    rps: null
+    # Maximum requests per provider day; null means unknown/not enforced.
+    rpd: null
+    # Maximum combined input and output tokens per minute; null means not enforced.
+    tpm: null
+    # Maximum combined input and output tokens per day; null means not enforced.
+    tpd: null
+    # Simultaneous in-process calls allowed for this model.
+    max_concurrency: 4
+    # Maximum input plus output context size in tokens. Set from provider docs.
+    context_window: 0
+    # Router-side ceiling for generated tokens per attempt. Set from provider docs.
+    max_output_tokens: 0
+    # Whether the endpoint accepts native JSON response mode.
+    supports_json_mode: false
+    # Whether the model/API supports tool calling.
+    supports_tools: false
+    # Whether the model accepts image input.
+    supports_vision: false
+    # Provider input price in USD per million tokens; use 0 only for a verified free tier.
+    input_price_per_mtok: 0
+    # Provider output price in USD per million tokens; use 0 only for a verified free tier.
+    output_price_per_mtok: 0
+    # Optional paid-plan input price used to estimate savings on free tiers.
+    shadow_input_price_per_mtok: null
+    # Optional paid-plan output price used to estimate savings on free tiers.
+    shadow_output_price_per_mtok: null
+    # Whether this endpoint is a free-tier offering, based on current provider terms.
+    is_free_tier: true
+    # Privacy policy: may_train, no_train, or unknown. Private tasks require no_train.
+    data_policy: unknown
+    # Free-form reminder or provider-specific caveat; do not put secrets here.
+    notes: Replace every placeholder and verify pricing, quotas, and data policy.
+
+task_routes:
+  # Application task name passed to router.call(...).
+  example_task:
+    # Ordered tiers to try for this task.
+    tier_order: [T0, T1, T2, T3]
+    # Capability filters, e.g. {json_mode: true, min_context: 32000}.
+    requires: {}
+    # Temperature used unless the call overrides it.
+    default_temperature: 0
+    # Maximum provider attempts across retries and fallbacks.
+    max_attempts: 3
+    # Budget group charged for this task.
+    budget_group: default
+    # public or private; private routing fails closed unless model data_policy is no_train.
+    sensitivity: public
+    # Cache lifetime in seconds; null means no expiry, 0 means do not cache.
+    cache_ttl_seconds: 3600
+
+budgets:
+  # Budget group referenced by task_routes.budget_group.
+  default:
+    # Monthly USD cap. Set from your own spend limit; zero means no paid spend allowed.
+    monthly_cap_usd: 0
+    # Warning threshold as a percent of the monthly cap.
+    soft_warn_pct: 80
+    # If true, reserve each attempt's estimated cost and refuse calls that could exceed the cap.
+    hard_stop: true

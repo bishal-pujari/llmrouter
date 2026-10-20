@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+data/
+*.db
+*.db-shm
+*.db-wal
+.pytest_cache/
+
+.env
+.env copy.example
+config/router.yaml
