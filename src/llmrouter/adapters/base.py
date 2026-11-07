@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from llmrouter.config import ModelConfig
+
+CredentialResolver = Callable[[str], str | None]
 
 
 class ErrorClass(StrEnum):

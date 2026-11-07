@@ -142,3 +142,26 @@ def load_config(path: str | Path) -> RouterConfig:
         raise ConfigError(f"Cannot read configuration at {config_path}: {exc}") from exc
     except (yaml.YAMLError, ValidationError, ValueError) as exc:
         raise ConfigError(f"Invalid configuration at {config_path}: {exc}") from exc
+
+
+def load_config_data(raw: object) -> RouterConfig:
+    """Validate an already-decoded configuration mapping.
+
+    Worker deployments receive configuration through a non-secret binding or
+    environment variable instead of reading a persistent local file.
+    """
+    try:
+        if not isinstance(raw, dict):
+            raise ConfigError("Configuration must be a mapping")
+        return RouterConfig.model_validate(raw)
+    except (ValidationError, ValueError) as exc:
+        raise ConfigError(f"Invalid configuration: {exc}") from exc
+
+
+def load_config_text(text: str, *, format: str = "yaml") -> RouterConfig:
+    """Validate YAML or JSON configuration text without writing it to disk."""
+    try:
+        raw = yaml.safe_load(text) if format == "yaml" else __import__("json").loads(text)
+    except (yaml.YAMLError, ValueError) as exc:
+        raise ConfigError(f"Invalid configuration text: {exc}") from exc
+    return load_config_data(raw)

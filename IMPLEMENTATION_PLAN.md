@@ -12,6 +12,21 @@ This project is a local-first Python library for routing calls to free and low-c
 
 ## Milestones
 
+### Phase 2 — HTTP and Cloudflare Worker deployment
+
+Status: implemented in the repository; live Cloudflare deployment remains opt-in.
+
+This phase adds an authenticated HTTP/ASGI wrapper, an async D1 store, and a
+Cloudflare Python Worker entrypoint. The existing synchronous Router and local
+SQLite store remain supported; the Worker path uses async provider adapters and
+D1 because Python Workers do not provide functional threading or durable local
+files.
+
+Acceptance coverage: the HTTP wrapper has offline tests, the D1 adapter uses
+prepared statements and single-statement quota/budget reservations, and the
+full offline suite passes (52 tests). `pywrangler` deployment was not run
+because it requires Cloudflare tooling and credentials.
+
 1. **Foundation** — package metadata, strict config validation, SQLite migrations/store, examples, and setup docs. Implemented.
 2. **Execution core** — typed provider errors, normalized request/response types, scripted fake adapter, retry and fallback executor, and deterministic offline tests. Implemented.
 3. **Limits and selection** — atomic quota reservations, concurrency controls, cooldowns, candidate selection, and status data. Implemented.
@@ -45,7 +60,9 @@ The intended Cloudflare binding supplied for later deployment is:
 }
 ```
 
-This is a deployment note only. No Wrangler configuration or remote database access is added during Phase 1. Before Phase 2, implement a D1 `Store` that preserves transaction and single-writer/strong-consistency requirements for quota and budget reservations.
+The repository now includes the Worker entrypoint, Wrangler example, D1
+migration, and deployment notes under `cloudflare/`. Replace the placeholder
+database ID and apply the migration to a user-owned D1 database before deploy.
 
 ## Working agreement
 

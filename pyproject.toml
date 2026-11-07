@@ -22,6 +22,10 @@ llmrouter = "llmrouter.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9", "pytest-asyncio>=0.23,<1"]
+http = ["uvicorn>=0.30,<1"]
+
+[dependency-groups]
+worker = ["workers-py", "workers-runtime-sdk"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llmrouter"]

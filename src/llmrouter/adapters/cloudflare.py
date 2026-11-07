@@ -9,15 +9,17 @@ from urllib.parse import quote
 import httpx
 
 from llmrouter.adapters._http import class_for_status, raise_for_provider_error, redact_error
-from llmrouter.adapters.base import ErrorClass, NormalizedRequest, NormalizedResponse, ProviderError
+from llmrouter.adapters.base import CredentialResolver, ErrorClass, NormalizedRequest, NormalizedResponse, ProviderError
 from llmrouter.config import ModelConfig
 
 
 class CloudflareAdapter:
     name = "cloudflare"
 
-    def __init__(self, *, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(self, *, transport: httpx.BaseTransport | None = None,
+                 credential_resolver: CredentialResolver | None = None) -> None:
         self._async_transport = transport
+        self._credential_resolver = credential_resolver or os.environ.get
         self._client = httpx.Client(transport=transport, trust_env=False)
 
     def complete(self, req: NormalizedRequest, model: ModelConfig) -> NormalizedResponse:
@@ -26,7 +28,7 @@ class CloudflareAdapter:
                 f"Model {model.id!r} needs a Cloudflare account API base_url",
                 ErrorClass.CLIENT_ERROR,
             )
-        api_token = os.environ.get(model.api_key_env)
+        api_token = self._credential_resolver(model.api_key_env)
         if not api_token:
             raise ProviderError(
                 f"Required environment variable {model.api_key_env!r} is not set",
@@ -59,7 +61,7 @@ class CloudflareAdapter:
     async def acomplete(self, req: NormalizedRequest, model: ModelConfig) -> NormalizedResponse:
         if not model.base_url:
             raise ProviderError(f"Model {model.id!r} needs a Cloudflare account API base_url", ErrorClass.CLIENT_ERROR)
-        api_token = os.environ.get(model.api_key_env)
+        api_token = self._credential_resolver(model.api_key_env)
         if not api_token:
             raise ProviderError(f"Required environment variable {model.api_key_env!r} is not set", ErrorClass.AUTH_ERROR)
         body = _request_body(req, model.model_name)

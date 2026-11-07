@@ -55,6 +55,59 @@ Each adapter maps normalized text messages, temperature, output-token limits, us
 
 Each provider attempt is written to `call_log` in SQLite and to `router.jsonl` beside the database (by default, `data/router.jsonl`). Logs include task/model, attempt status, latency, usage, cost, and a prompt hash; prompt contents and API keys are omitted.
 
+## Phase 2 HTTP and Cloudflare Worker deployment
+
+The additive HTTP layer exposes an authenticated ASGI application for other
+services, including Node.js applications. It accepts bounded JSON requests at
+`POST /v1/call` and `POST /v1/call/json`, reports configured model health at
+`GET /v1/status`, and provides an unauthenticated liveness response at
+`GET /healthz`. All other routes require:
+
+```http
+Authorization: Bearer <LLMROUTER_HTTP_API_KEY>
+```
+
+The local wrapper can be mounted with an ASGI server around an existing
+`Router`:
+
+```python
+from llmrouter import Router
+from llmrouter.http_app import create_local_app
+
+router = Router.from_config("config/router.yaml")
+app = create_local_app(router)
+```
+
+Install an ASGI server for local hosting with `python -m pip install -e
+'.[http]'`, then point Uvicorn at the module containing `app`.
+
+A Node.js caller only needs ordinary `fetch`:
+
+```js
+const response = await fetch("https://router.example.com/v1/call", {
+  method: "POST",
+  headers: {
+    "authorization": `Bearer ${process.env.LLMROUTER_HTTP_API_KEY}`,
+    "content-type": "application/json"
+  },
+  body: JSON.stringify({
+    task: "example_task",
+    messages: [{ role: "user", content: "Reply with the word OK." }]
+  })
+});
+const result = await response.json();
+if (!response.ok) throw new Error(result.error);
+console.log(result.text);
+```
+
+For Cloudflare, use the files under `cloudflare/` and copy
+`wrangler.toml.example` to `wrangler.toml`. The Worker uses the Python
+Workers ASGI bridge, an async D1 store, and the `DB` binding. Put the validated
+router configuration in the non-secret `LLMROUTER_CONFIG_JSON` variable and
+put provider credentials plus `LLMROUTER_HTTP_API_KEY` in Worker secrets.
+The Worker path intentionally does not use local SQLite, local files, or the
+threaded Phase 1 Router.
+
 When the library is exposed over HTTP in a later phase, the HTTP layer must require token authentication.
 
 Private routes fail closed unless the selected model is explicitly configured

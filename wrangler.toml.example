@@ -1,0 +1,10 @@
+name = "llmrouter"
+main = "src/llmrouter/cloudflare_worker.py"
+compatibility_date = "2026-10-20"
+compatibility_flags = ["python_workers"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "llmrouter"
+database_id = "replace-with-your-d1-database-id"
+migrations_dir = "cloudflare/migrations"

@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from llmrouter.adapters.base import (
+    CredentialResolver,
     ErrorClass,
     NormalizedRequest,
     NormalizedResponse,
@@ -23,9 +24,11 @@ from llmrouter.config import ModelConfig
 class OpenAICompatAdapter:
     name = "openai_compat"
 
-    def __init__(self, *, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(self, *, transport: httpx.BaseTransport | None = None,
+                 credential_resolver: CredentialResolver | None = None) -> None:
         # A transport hook makes adapter and router tests fully offline.
         self._async_transport = transport
+        self._credential_resolver = credential_resolver or os.environ.get
         # Do not let ambient HTTP(S)_PROXY/SSL environment variables redirect
         # credential-bearing requests outside the configured endpoint.
         self._client = httpx.Client(transport=transport, trust_env=False)
@@ -35,7 +38,7 @@ class OpenAICompatAdapter:
             raise ProviderError(
                 f"Model {model.id!r} has no base_url", ErrorClass.CLIENT_ERROR
             )
-        api_key = os.environ.get(model.api_key_env)
+        api_key = self._credential_resolver(model.api_key_env)
         if not api_key:
             raise ProviderError(
                 f"Required environment variable {model.api_key_env!r} is not set",
@@ -92,7 +95,7 @@ class OpenAICompatAdapter:
     async def acomplete(self, req: NormalizedRequest, model: ModelConfig) -> NormalizedResponse:
         if not model.base_url:
             raise ProviderError(f"Model {model.id!r} has no base_url", ErrorClass.CLIENT_ERROR)
-        api_key = os.environ.get(model.api_key_env)
+        api_key = self._credential_resolver(model.api_key_env)
         if not api_key:
             raise ProviderError(
                 f"Required environment variable {model.api_key_env!r} is not set",

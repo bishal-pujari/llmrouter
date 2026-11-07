@@ -9,7 +9,7 @@ from urllib.parse import quote
 import httpx
 
 from llmrouter.adapters._http import class_for_status, raise_for_provider_error, redact_error
-from llmrouter.adapters.base import ErrorClass, NormalizedRequest, NormalizedResponse, ProviderError
+from llmrouter.adapters.base import CredentialResolver, ErrorClass, NormalizedRequest, NormalizedResponse, ProviderError
 from llmrouter.config import ModelConfig
 
 
@@ -19,13 +19,15 @@ class GeminiAdapter:
     def __init__(
         self, *, transport: httpx.BaseTransport | None = None,
         base_url: str = "https://generativelanguage.googleapis.com/v1beta",
+        credential_resolver: CredentialResolver | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self._async_transport = transport
+        self._credential_resolver = credential_resolver or os.environ.get
         self._client = httpx.Client(transport=transport, trust_env=False)
 
     def complete(self, req: NormalizedRequest, model: ModelConfig) -> NormalizedResponse:
-        api_key = os.environ.get(model.api_key_env)
+        api_key = self._credential_resolver(model.api_key_env)
         if not api_key:
             raise ProviderError(
                 f"Required environment variable {model.api_key_env!r} is not set",
@@ -106,7 +108,7 @@ class GeminiAdapter:
             ) from exc
 
     async def acomplete(self, req: NormalizedRequest, model: ModelConfig) -> NormalizedResponse:
-        api_key = os.environ.get(model.api_key_env)
+        api_key = self._credential_resolver(model.api_key_env)
         if not api_key:
             raise ProviderError(f"Required environment variable {model.api_key_env!r} is not set", ErrorClass.AUTH_ERROR)
         contents: list[dict[str, Any]] = []
